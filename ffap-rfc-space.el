@@ -3,7 +3,7 @@
 ;; Copyright 2007, 2008, 2009, 2010 Kevin Ryde
 
 ;; Author: Kevin Ryde <user42@zip.com.au>
-;; Version: 9
+;; Version: 10
 ;; Keywords: files
 ;; URL: http://user42.tuxfamily.org/ffap-rfc-space/index.html
 ;; EmacsWiki: FindFileAtPoint
@@ -55,6 +55,7 @@
 ;; Version 7 - require word boundary
 ;; Version 8 - set ffap-string-at-point variable
 ;; Version 9 - undo defadvice on unload-feature
+;; Version 10 - speedup for big buffers
 
 ;;; Code:
 
@@ -62,13 +63,25 @@
 
 (require 'ffap)
 
+;; for `ad-find-advice' macro when running uncompiled
+;; (don't unload 'advice before our -unload-function)
+(require 'advice)
+
 ;; emacs23 dropped the space from the rfc pattern, add it back with this
 (add-to-list 'ffap-alist '("^[Rr][Ff][Cc] \\([0-9]+\\)" . ffap-rfc))
 
 (put 'rfc 'bounds-of-thing-at-point
      (lambda ()
-       ;; this regexp is the same as in `ffap-alist'
-       (and (thing-at-point-looking-at "\\b[Rr][Ff][Cc][- #]?\\([0-9]+\\)")
+       ;; This regexp is the same as in `ffap-alist'.
+       ;;
+       ;; Narrowing to the current line is a speedup for big buffers.  It
+       ;; limits the amount of searching forward and back that
+       ;; thing-at-point-looking-at does when it works-around the way
+       ;; re-search-backward doesn't match across point.
+       ;;
+       (and (save-restriction
+              (narrow-to-region (line-beginning-position) (line-end-position))
+              (thing-at-point-looking-at "\\b[Rr][Ff][Cc][- #]?\\([0-9]+\\)"))
             (cons (match-beginning 0) (match-end 0)))))
 
 (defadvice ffap-string-at-point (around ffap-rfc-space activate)
