@@ -1,10 +1,10 @@
 ;;; ffap-rfc-space.el --- recognise RFC with a space, like "RFC 1234"
 
-;; Copyright 2007, 2008, 2009, 2010 Kevin Ryde
+;; Copyright 2007, 2008, 2009, 2010, 2015 Kevin Ryde
 
-;; Author: Kevin Ryde <user42@zip.com.au>
-;; Version: 10
-;; Keywords: files
+;; Author: Kevin Ryde <user42_kevin@yahoo.com.au>
+;; Version: 12
+;; Keywords: files, ffap, rfc
 ;; URL: http://user42.tuxfamily.org/ffap-rfc-space/index.html
 ;; EmacsWiki: FindFileAtPoint
 
@@ -41,8 +41,8 @@
 ;;
 ;;     (eval-after-load "ffap" '(require 'ffap-rfc-space))
 ;;
-;; There's an autoload cookie below for this, if you're brave enough to use
-;; `update-file-autoloads' and friends.
+;; There's an autoload cookie for this if you install by
+;; `M-x package-install' or know `update-file-autoloads' and friends.
 
 ;;; History:
 ;; 
@@ -56,6 +56,8 @@
 ;; Version 8 - set ffap-string-at-point variable
 ;; Version 9 - undo defadvice on unload-feature
 ;; Version 10 - speedup for big buffers
+;; Version 11 - new email
+;; Version 12 - quieten the byte compiler on `thing-at-point-looking-at'
 
 ;;; Code:
 
@@ -63,9 +65,18 @@
 
 (require 'ffap)
 
-;; for `ad-find-advice' macro when running uncompiled
-;; (don't unload 'advice before our -unload-function)
+;; Explicit dependency on advice.el since `ffap-rfc-space-unload-function'
+;; needs `ad-find-advice' macro when running not byte compiled, and that
+;; macro is not autoloaded.
 (require 'advice)
+
+;; Have `thing-at-point-looking-at' to quieten the byte compiler.
+;; At runtime the `bounds-of-thing-at-point' handler is called by
+;; thingatpt.el so it exists then.
+(eval-when-compile
+  (require 'thingatpt))
+
+;;-----------------------------------------------------------------------------
 
 ;; emacs23 dropped the space from the rfc pattern, add it back with this
 (add-to-list 'ffap-alist '("^[Rr][Ff][Cc] \\([0-9]+\\)" . ffap-rfc))
@@ -97,6 +108,8 @@
     ad-do-it))
 
 (defun ffap-rfc-space-unload-function ()
+  "Remove defadvice from `ffap-string-at-point'.
+This is called by `unload-feature'."
   (when (ad-find-advice 'ffap-string-at-point 'around 'ffap-rfc-space)
     (ad-remove-advice   'ffap-string-at-point 'around 'ffap-rfc-space)
     (ad-activate        'ffap-string-at-point))
